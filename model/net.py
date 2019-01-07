@@ -34,6 +34,8 @@ class DGCNet(nn.Module):
         self.l2norm = FeatureL2Norm()
         # Correlation volume
         self.corr = CorrelationVolume()
+        # Bilinear upsampler
+        self.upsampler = nn.Upsample(scale_factor=2, mode='bilinear')
 
         if self.mask:
             self.matchability_net = MatchabilityNet(in_channels=128, bn=True)
@@ -47,4 +49,11 @@ class DGCNet(nn.Module):
 
 
     def forward(self, x1, x2):
+        """
+        x1 - target image
+        x2 - source image
+        """
+
+        target_pyr = self.pyramid(x1)
+        source_pyr = self.pyramid(x2)
 
