@@ -24,7 +24,7 @@ def factory(type, in_channels):
 
 
 class DGCNet(nn.Module):
-    def __init__(self, mask=False)
+    def __init__(self, mask=False):
         super(DGCNet, self).__init__()
 
         self.mask = mask
