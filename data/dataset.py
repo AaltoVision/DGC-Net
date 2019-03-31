@@ -31,7 +31,6 @@ class HPatchesDataset(Dataset):
         # As gt homography is calculated for (h_orig, w_orig) images, we need to
         # map it to (h_scale, w_scale)
         # H_scale = S * H * inv(S)
-        #S_scale = np.array([[w_scale/w_ref_orig, 0, 0], [0, h_scale/h_ref_orig, 0], [0, 0, 1]])
         S1 = np.array([[w_scale/w_ref_orig, 0, 0], [0, h_scale/h_ref_orig, 0], [0, 0, 1]])
         S2 = np.array([[w_scale/w_trg_orig, 0, 0], [0, h_scale/h_trg_orig, 0], [0, 0, 1]])
 
@@ -110,9 +109,7 @@ class HomoAffTpsDataset(Dataset):
         out_size = torch.Size((1, 3, out_h, out_w))
         if theta is None:
             theta = self.THETA_IDENTITY
-            theta = theta.expand(1, 2, 3)
-            theta = Variable(theta, requires_grad=False)
-            theta = theta.contiguous()
+            theta = theta.expand(1, 2, 3).contiguous()
             return F.affine_grid(theta, out_size)
         elif (theta.shape[1] == 2):
             return F.affine_grid(theta, out_size)
@@ -168,10 +165,10 @@ class HomoAffTpsDataset(Dataset):
     def symmetric_image_pad(self, image_batch, padding_factor):
         b, c, h, w = image_batch.size()
         pad_h, pad_w = int(h*padding_factor), int(w*padding_factor)
-        idx_pad_left  = Variable(torch.LongTensor(range(pad_w-1,-1,-1)), requires_grad=False)
-        idx_pad_right = Variable(torch.LongTensor(range(w-1,w-pad_w-1,-1)), requires_grad=False)
-        idx_pad_top   = Variable(torch.LongTensor(range(pad_h-1,-1,-1)), requires_grad=False)
-        idx_pad_bottom = Variable(torch.LongTensor(range(h-1,h-pad_h-1,-1)), requires_grad=False)
+        idx_pad_left  = torch.LongTensor(range(pad_w - 1, -1, -1))
+        idx_pad_right = torch.LongTensor(range(w - 1, w - pad_w - 1, -1))
+        idx_pad_top   = torch.LongTensor(range(pad_h-1,-1,-1))
+        idx_pad_bottom = torch.LongTensor(range(h - 1, h - pad_h - 1, -1))
 
         image_batch = torch.cat((image_batch.index_select(3,idx_pad_left),image_batch,
                                  image_batch.index_select(3,idx_pad_right)),3)
@@ -203,9 +200,6 @@ class HomoAffTpsDataset(Dataset):
             # make arrays float tensor for subsequent processing
             image = torch.Tensor(source_img.astype(np.float32))
 
-            # convert to variables
-            theta_var =  Variable(theta, requires_grad=False)
-
             if (image.numpy().ndim == 2):
                 image = torch.Tensor(np.dstack((source_img.astype(np.float32), source_img.astype(np.float32), source_img.astype(np.float32))))
 
@@ -213,16 +207,16 @@ class HomoAffTpsDataset(Dataset):
 
             # Resize image using bilinear sampling with identity affine
             # image is 480x640
-            image = self.transform_image(Variable(image.unsqueeze(0), requires_grad=False), self.H_AFF_TPS, self.W_AFF_TPS)
+            image = self.transform_image(image.unsqueeze(0), self.H_AFF_TPS, self.W_AFF_TPS)
 
             # generate symmetrically padded image for bigger sampling region
             image_pad = self.symmetric_image_pad(image, padding_factor=0.5)
 
             # get cropped source image (240x240)
-            cropped_source_image = self.transform_image(image_pad, self.H_OUT, self.W_OUT, padding_factor=0.5, crop_factor=9/16).data.squeeze()
+            cropped_source_image = self.transform_image(image_pad, self.H_OUT, self.W_OUT, padding_factor=0.5, crop_factor=9/16).squeeze()
             
             # get cropped target image (240x240)
-            cropped_target_image = self.transform_image(image_pad, self.H_OUT, self.W_OUT, padding_factor=0.5, crop_factor=9/16, theta=theta_var).data.squeeze(0)
+            cropped_target_image = self.transform_image(image_pad, self.H_OUT, self.W_OUT, padding_factor=0.5, crop_factor=9/16, theta=theta).squeeze(0)
 
         elif (transform_type == 2): # Homography transformation
             # Homography matrix for 768x576 image resolution
@@ -238,15 +232,11 @@ class HomoAffTpsDataset(Dataset):
 
             # warp the fullsize original source image
             img_src_orig = torch.Tensor(img_src_orig.astype(np.float32)).transpose(1,2).transpose(0,1)
-           
-            #img_orig_src_vrbl = Variable(trf.ToTensor()(img_src_orig).unsqueeze(0))
-            img_orig_target_vrbl = F.grid_sample(Variable(img_src_orig.unsqueeze(0), requires_grad=False), grid_full).squeeze().transpose(0,1).transpose(1,2)
+            img_orig_target_vrbl = F.grid_sample(img_src_orig.unsqueeze(0), grid_full).squeeze().transpose(0,1).transpose(1,2)
 
             # get the central crop of the target image
-            img_target_crop, _, _ = center_crop(img_orig_target_vrbl.data.numpy(), self.W_OUT)
+            img_target_crop, _, _ = center_crop(img_orig_target_vrbl.numpy(), self.W_OUT)
 
-            #img_src_crop_vrbl = Variable(trf.ToTensor()(img_src_crop).unsqueeze(0))
-            #img_target_crop_vrbl = Variable(torch.from_numpy(img_target_crop).float().unsqueeze(0)).transpose(2,-1).transpose(1,2)
             cropped_source_image = torch.Tensor(img_src_crop.astype(np.float32)).transpose(1,2).transpose(0,1)
             cropped_target_image = torch.Tensor(img_target_crop.astype(np.float32)).transpose(1,2).transpose(0,1)
         else:
@@ -262,13 +252,13 @@ class HomoAffTpsDataset(Dataset):
         mask_y = []
         if (transform_type == 0):
             for layer_size in self.pyramid_param:
-                grid = self.generate_grid(layer_size, layer_size, theta=theta_var).data.squeeze(0)
+                grid = self.generate_grid(layer_size, layer_size, theta).squeeze(0)
                 mask = grid.ge(-1) & grid.le(1)
                 grid_pyramid.append(grid)
                 mask_x.append(mask[:,:,0])
                 mask_y.append(mask[:,:,1])
         elif (transform_type == 1):
-            grid = self.generate_grid(self.H_OUT, self.W_OUT, theta_var).data.squeeze(0)
+            grid = self.generate_grid(self.H_OUT, self.W_OUT, theta).squeeze(0)
             for layer_size in self.pyramid_param:
                 grid_m = torch.from_numpy(cv2.resize(grid.numpy(), (layer_size, layer_size)))
                 mask = grid_m.ge(-1) & grid_m.le(1)
@@ -310,8 +300,6 @@ class TpsGridGen(Module):
         # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
-        self.grid_X = Variable(self.grid_X,requires_grad=False)
-        self.grid_Y = Variable(self.grid_Y,requires_grad=False)
         if use_cuda:
             self.grid_X = self.grid_X.cuda()
             self.grid_Y = self.grid_Y.cuda()
@@ -325,21 +313,18 @@ class TpsGridGen(Module):
             P_Y = np.reshape(P_Y,(-1,1)) # size (N,1)
             P_X = torch.FloatTensor(P_X)
             P_Y = torch.FloatTensor(P_Y)
-            self.Li = Variable(self.compute_L_inverse(P_X,P_Y).unsqueeze(0),requires_grad=False)
+            self.Li = self.compute_L_inverse(P_X, P_Y).unsqueeze(0)
             self.P_X = P_X.unsqueeze(2).unsqueeze(3).unsqueeze(4).transpose(0,4)
             self.P_Y = P_Y.unsqueeze(2).unsqueeze(3).unsqueeze(4).transpose(0,4)
-            self.P_X = Variable(self.P_X,requires_grad=False)
-            self.P_Y = Variable(self.P_Y,requires_grad=False)
             if use_cuda:
                 self.P_X = self.P_X.cuda()
                 self.P_Y = self.P_Y.cuda()
 
     def forward(self, theta):
-        warped_grid = self.apply_transformation(theta,torch.cat((self.grid_X,self.grid_Y),3))
-        
+        warped_grid = self.apply_transformation(theta,torch.cat((self.grid_X, self.grid_Y), 3))
         return warped_grid
     
-    def compute_L_inverse(self,X,Y):
+    def compute_L_inverse(self, X, Y):
         N = X.size()[0] # num of points (along dim 0)
         # construct matrix K
         Xmat = X.expand(N,N)
