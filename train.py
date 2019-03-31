@@ -3,7 +3,8 @@ import sys
 import argparse
 import time
 import os, fnmatch
-from os.path import exists, join, basename
+from os import path as osp
+#from os.path import exists, join, basename
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,8 +17,8 @@ import matplotlib.pyplot as plt
 from data.dataset import WideBaselineDataset, SUN3DDataset, HomographyDataset, HomoAffPascalTMDataset
 from util.loss import L1LossMasked
 from util.train_eval_routine import train_epoch, validate_epoch
-#from model.model import WBCNet
-from model.model_v2 import WBCNet
+
+from model.net import DGCNet
 
 import gc
 from tqdm import tqdm # progress bar
@@ -28,15 +29,6 @@ from termcolor import cprint, colored
 import pickle
 from PIL import Image
 import numpy as np
-from tensorboardX import SummaryWriter
-
-
-def find_checkpoint(path, pattern='*.pth'):
-    for _, _, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                return name
-    return None
 
 
 # Argument parsing
@@ -44,24 +36,18 @@ parser = argparse.ArgumentParser(description='DGC-Net train script')
 # Paths
 parser.add_argument('--src_path', type=str, default='/ssd_storage/projects/wide_baseline_correspondence/datasets/demon_data/demon/examples',
                     help='path to training transformation csv folder')
-#parser.add_argument('--snapshots', type=str, default='./snapshots/fine_tune_ign_demon_data')
-parser.add_argument('--snapshots', type=str, default='./snapshots/aff_TM_no_mm_EQUAL_WEIGHT_COEFFS')
-#parser.add_argument('--resume_path', type=str, default='./snapshots/T_2018_04_15_12_03', help='fine tuning')
+parser.add_argument('--snapshots', type=str, default='./snapshots')
 parser.add_argument('--resume_path', type=str, default='./snapshots/aff_tps_data_match', help='fine tuning')
-parser.add_argument('--logs',      type=str, default='./logs/')
+parser.add_argument('--logs', type=str, default='./logs/')
 # Optimization parameters
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--momentum', type=float,
                     default=0.9, help='momentum constant')
 parser.add_argument('--start_epoch', type=int, default=-1, help='start epoch')
-parser.add_argument('--n_epoch', type=int, default=70,
-                    help='number of training epochs')
-parser.add_argument('--batch-size', type=int, default=32,
-                    help='training batch size')
-parser.add_argument('--n_threads', type=int, default=8,
-                    help='number of parallel threads for dataloaders')
-parser.add_argument('--weight-decay', type=float,
-                    default=0.00001, help='weight decay constant')
+parser.add_argument('--n_epoch', type=int, default=70, help='number of training epochs')
+parser.add_argument('--batch-size', type=int, default=32, help='training batch size')
+parser.add_argument('--n_threads', type=int, default=8, help='number of parallel threads for dataloaders')
+parser.add_argument('--weight-decay', type=float, default=0.00001, help='weight decay constant')
 parser.add_argument('--seed', type=int, default=1984, help='Pseudo-RNG seed')
 
 args = parser.parse_args()
@@ -74,10 +60,10 @@ if not os.path.isdir(args.snapshots):
 
 cur_snapshot = time.strftime('%Y_%m_%d_%H_%M')
 
-if not os.path.isdir(os.path.join(args.snapshots, cur_snapshot)):
-    os.mkdir(os.path.join(args.snapshots, cur_snapshot))
+if not osp.isdir(osp.join(args.snapshots, cur_snapshot)):
+    os.mkdir(osp.join(args.snapshots, cur_snapshot))
 
-with open(os.path.join(args.snapshots, cur_snapshot, 'args.pkl'), 'wb') as f:
+with open(osp.join(args.snapshots, cur_snapshot, 'args.pkl'), 'wb') as f:
     pickle.dump(args, f)
 
 use_cuda = torch.cuda.is_available()
@@ -95,37 +81,29 @@ weights_loss_coeffs = [1, 1, 1, 1, 1]
 weights_loss_feat = [1, 1, 1, 1]
 
 
-#IMG_PATH = '/ssd_storage/projects/wide_baseline_correspondence/datasets/pascal-voc11'
 IMG_PATH = '/ssd_storage/projects/wide_baseline_correspondence/datasets/tokyo_tm'
 #IMG_PATH = '/tmp/melekhov'
-'''
-HEAD_PATH = '/ssd_storage/projects/wide_baseline_correspondence/datasets'
 
-train_dataset = HomoAffPascalTMDataset(head_path=HEAD_PATH, \
-                                    csv_file=os.path.join(HEAD_PATH, 'homo_aff_pascal_tm_train_1984.csv'), \
-                                    transforms=dataset_transforms)
-val_dataset = HomoAffPascalTMDataset(head_path=HEAD_PATH, \
-                                    csv_file=os.path.join(HEAD_PATH, 'homo_aff_pascal_tm_test_1984.csv'), \
-                                    transforms=dataset_transforms)
-'''
+train_dataset = WideBaselineDataset(image_path=IMG_PATH,
+                                    csv_data_file=os.path.join(IMG_PATH, 'ignacio_tokyo_aff_train_new_ordering.csv'),
+                                    transforms=dataset_transforms,
+                                    joint_aff_tps=False,
+                                    pyramid_param=pyramid_param)
 
-train_dataset = WideBaselineDataset(image_path=IMG_PATH, \
-                                    #csv_data_file=os.path.join(IMG_PATH, 'ignacio_pascal_aff_train_new_ordering.csv'), \
-                                    csv_data_file=os.path.join(IMG_PATH, 'ignacio_tokyo_aff_train_new_ordering.csv'), \
-                                    transforms=dataset_transforms, \
-                                    joint_aff_tps=False, pyramid_param=pyramid_param)
+val_dataset = WideBaselineDataset(image_path=IMG_PATH,
+                                  csv_data_file=os.path.join(IMG_PATH, 'ignacio_tokyo_aff_test_new_ordering.csv'),
+                                  transforms=dataset_transforms,
+                                  joint_aff_tps=False, pyramid_param=pyramid_param)
 
-val_dataset = WideBaselineDataset(image_path=IMG_PATH, \
-                                    #csv_data_file=os.path.join(IMG_PATH, 'ignacio_pascal_aff_test_new_ordering.csv'), \
-                                    csv_data_file=os.path.join(IMG_PATH, 'ignacio_tokyo_aff_test_new_ordering.csv'), \
-                                    transforms=dataset_transforms, \
-                                    joint_aff_tps=False, pyramid_param=pyramid_param)
+train_dataloader = DataLoader(train_dataset,
+                              batch_size=args.batch_size,
+                              shuffle=True,
+                              num_workers=args.n_threads)
 
-train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,
-                              shuffle=True, num_workers=args.n_threads)
-
-val_dataloader = DataLoader(val_dataset, batch_size=1,
-                              shuffle=False, num_workers=args.n_threads)
+val_dataloader = DataLoader(val_dataset,
+                            batch_size=1,
+                            shuffle=False,
+                            num_workers=args.n_threads)
 
 '''
 train_dataset = HomographyDataset(image_path=IMG_PATH, \
@@ -182,32 +160,7 @@ plt.show()
 
 
 
-# self, src_path, imgs_left_npy, imgs_right_npy, grid_npy, motion_npy, pyramid_param, transforms
-'''
-# Dataset and dataloader
-train_dataset = SUN3DDataset(src_path=os.path.join(args.src_path, 'train_data'),
-                             imgs_left_npy='ign_sun3d_rgbd_mvs_train_all_imgs_left_RND.npy',
-                             imgs_right_npy='ign_sun3d_rgbd_mvs_train_all_imgs_right_RND.npy',
-                             grid_npy='ign_sun3d_rgbd_mvs_train_all_grid_RND.npy',
-                             motion_npy='sun3d_all_motion_RND.npy',
-                             pyramid_param=pyramid_param, transforms=dataset_transforms)
 
-val_dataset   = SUN3DDataset(src_path=os.path.join(args.src_path, 'test_data'),
-                             imgs_left_npy='ign_sun3d_rgbd_mvs_test_all_imgs_left_RND.npy',
-                             imgs_right_npy='ign_sun3d_rgbd_mvs_test_all_imgs_right_RND.npy',
-                             grid_npy='ign_sun3d_rgbd_mvs_test_all_grid_RND.npy',
-                             motion_npy='sun3d_all_test_motion_RND.npy',
-                             pyramid_param=pyramid_param, transforms=dataset_transforms)
-
-train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,
-                              shuffle=True, num_workers=args.n_threads)
-
-val_dataloader = DataLoader(val_dataset, batch_size=1,
-                              shuffle=False, num_workers=args.n_threads)
-'''
-
-#checkpoint_name = find_checkpoint(args.resume_path)
-#checkpoint = torch.load(os.path.join(args.resume_path, checkpoint_name))
 model = WBCNet()
 #print(model)
 #sys.exit()
@@ -215,14 +168,11 @@ model = WBCNet()
 model = nn.DataParallel(model)
 model.cuda()
 
-
+# Optimizer
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
-#scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[3,15,30,45,60], gamma=0.1)
-#scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[10, 25, 40], gamma=0.1)
+# Scheduler
 scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[2,15,30,45,60], gamma=0.1)
-
-#criterion_grid = nn.MSELoss().cuda()
-#criterion_grid = nn.L1Loss().cuda()
+# Criterions
 criterion_grid = L1LossMasked().cuda()
 criterion_matchability = nn.BCEWithLogitsLoss().cuda()
 
@@ -235,7 +185,6 @@ train_started = time.time()
 writer = SummaryWriter(os.path.join(args.logs,'wide-baseline-correspondence',cur_snapshot))
 
 for epoch in range(args.n_epoch):
-    
     scheduler.step()
     
     # Training one epoch
