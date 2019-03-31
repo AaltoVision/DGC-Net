@@ -1,15 +1,16 @@
-import torch
 import cv2
+import numpy as np
+import pandas as pd
+from os import path as osp
 
-import os
-import os.path as osp
-
+import torch
+from torch.utils.data import Dataset
 
 
 class HPatchesDataset(Dataset):
-    def __init__(self, csv_file, image_path, transforms, image_size=(240, 240)):
+    def __init__(self, csv_file, image_path_orig, transforms, image_size=(240,240)):
         self.df = pd.read_csv(csv_file)
-        self.image_path = image_path
+        self.image_path_orig = image_path_orig
         self.transforms = transforms
         self.image_size = image_size
 
@@ -20,58 +21,58 @@ class HPatchesDataset(Dataset):
         data = self.df.iloc[idx]
         obj = str(data.obj)
         im1_id, im2_id = str(data.im1), str(data.im2)
-
         h_scale, w_scale = self.image_size[0], self.image_size[1]
-        h_orig, w_orig = data.Him.astype('int'), data.Wim.astype('int')
 
-        # Homography matrix
-        H = data[5:].astype('double').values.reshape((3, 3))
+        h_ref_orig, w_ref_orig = data.Him.astype('int'), data.Wim.astype('int')
+        h_trg_orig, w_trg_orig, _ = cv2.imread(osp.join(self.image_path_orig, obj, im2_id+'.ppm'), -1).shape
 
-        '''
-        As GT homography is calculated for (h_orig, w_orig) images,
-        we need to map it to (h_scale, w_scale)
-        '''
-        S = np.array([[w_scale / w_orig, 0, 0], [0, h_scale / h_orig, 0], [0, 0, 1]])
+        H = data[5:].astype('double').values.reshape((3,3))
 
-        H_scale = np.dot(np.dot(S, H), np.linalg.inv(S))
+        # As gt homography is calculated for (h_orig, w_orig) images, we need to
+        # map it to (h_scale, w_scale)
+        # H_scale = S * H * inv(S)
+        #S_scale = np.array([[w_scale/w_ref_orig, 0, 0], [0, h_scale/h_ref_orig, 0], [0, 0, 1]])
+        S1 = np.array([[w_scale/w_ref_orig, 0, 0], [0, h_scale/h_ref_orig, 0], [0, 0, 1]])
+        S2 = np.array([[w_scale/w_trg_orig, 0, 0], [0, h_scale/h_trg_orig, 0], [0, 0, 1]])
+
+        H_scale = np.dot(np.dot(S2, H), np.linalg.inv(S1))
 
         # inverse homography matrix
-        H_inv = np.linalg.inv(H_scale)
+        Hinv = np.linalg.inv(H_scale)
 
-        X, Y = np.meshgrid(np.linspace(0, w_scale - 1, w_scale), np.linspace(0, h_scale - 1, h_scale))
-        X, Y = X.flatten(), Y.flatten()
+        # estimate the grid
+        X,Y = np.meshgrid(np.linspace(0, w_scale-1, w_scale),np.linspace(0, h_scale-1, h_scale))
+        X,Y = X.flatten(), Y.flatten()
 
         # create matrix representation
-        XY_hom = np.stack([X, Y, np.ones_like(X)], axis=1).T
+        XYhom = np.stack([X, Y, np.ones_like(X)], axis=1).T
 
-        # m
-        XY_warp_hom = np.dot(H_inv, XY_hom)
+        # multiply Hinv to XYhom to find the warped grid
+        XYwarpHom = np.dot(Hinv, XYhom)
 
         # vector representation
-        X_warp_hom = torch.from_numpy(XY_warp_hom[0, :].float()
-        Y_warp_hom = torch.from_numpy(XY_warp_hom[1, :].float()
-        Z_warp_hom = torch.from_numpy(XY_warp_hom[2, :].float()
+        XwarpHom = torch.from_numpy(XYwarpHom[0,:]).float()
+        YwarpHom = torch.from_numpy(XYwarpHom[1,:]).float()
+        ZwarpHom = torch.from_numpy(XYwarpHom[2,:]).float()
 
-        X_warp = (2 * X_warp_hom / (Z_warp_hom + 1e-8) / (w_scale - 1) - 1).view(h_scale, w_scale)
-        Y_warp = (2 * Y_warp_hom / (Z_warp_hom + 1e-8) / (h_scale - 1) - 1).view(h_scale, w_scale)
-        
-        # GT grid
-        grid_gt = torch.stack([X_warp, Y_warp], dim=-1)
+        Xwarp = (2 * XwarpHom / (ZwarpHom + 1e-8) / (w_scale - 1) - 1).view(h_scale, w_scale)
+        Ywarp = (2 * YwarpHom / (ZwarpHom + 1e-8) / (h_scale - 1) - 1).view(h_scale, w_scale)
+        # and now the grid
+        grid_gt = torch.stack([Xwarp, Ywarp], dim=-1)
 
         # mask
         mask = grid_gt.ge(-1) & grid_gt.le(1)
-        mask = mask[:, :, 0] & mask[:, :, 1]
+        mask = mask[:,:,0] & mask[:,:,1]
 
-        img_1 = cv2.imread(osp.join(self.image_path, obj, im1_id + '.ppm'), -1)
-        img_2 = cv2.imread(osp.join(self.image_path, obj, im2_id + '.ppm'), -1)
-
+        img1 = cv2.resize(cv2.imread(osp.join(self.image_path_orig, obj, im1_id+'.ppm'), -1), self.image_size)
+        img2 = cv2.resize(cv2.imread(osp.join(self.image_path_orig, obj, im2_id+'.ppm'), -1), self.image_size)
         _, _, ch = img1.shape
         if ch == 3:
-            img_1 = cv2.cvtColor(cv2.imread(osp.join(self.image_path, obj, im1_id + '.ppm'), -1), cv2.COLOR_BGR2RGB)
-            img_2 = cv2.cvtColor(cv2.imread(osp.join(self.image_path, obj, im2_id + '.ppm'), -1), cv2.COLOR_BGR2RGB)
+            img1 = cv2.cvtColor(cv2.resize(cv2.imread(osp.join(self.image_path_orig, obj, im1_id+'.ppm'), -1), self.image_size), cv2.COLOR_BGR2RGB)
+            img2 = cv2.cvtColor(cv2.resize(cv2.imread(osp.join(self.image_path_orig, obj, im2_id+'.ppm'), -1), self.image_size), cv2.COLOR_BGR2RGB)
 
         # global transforms
-        img_1 = self.transforms(img_1)
-        img_2 = self.transforms(img_2)
+        img1 = self.transforms(img1)
+        img2 = self.transforms(img2)
 
-        return {'source_img': img_1, 'target_img': img_2, 'correspondence_map': grid_gt, 'mask': mask.long()}
+        return {'source_image': img1, 'target_image': img2, 'correspondence_map': grid_gt, 'mask': mask.long()}

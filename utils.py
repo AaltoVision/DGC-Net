@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import itertools
-
+import torch
+import numpy as np
 
 
 def epe(input_flow, target_flow):
@@ -28,15 +29,15 @@ def calculate_epe_hpatches(net, val_loader, img_size=240):
     pbar = tqdm(enumerate(val_loader), total=len(val_loader))
     for _, mini_batch in pbar:
 
-        source_img = mini_batch['source_image'].to(net.device())
-        target_img = mini_batch['target_image'].to(net.device())
+        source_img = mini_batch['source_image'].cuda()
+        target_img = mini_batch['target_image'].cuda()
         bs, _, _, _ = source_img.shape
 
         # net prediction
-        estimates_grid = net(source_img, target_img)
+        estimates_grid, est_map = net(source_img, target_img)
 
-        flow_est = estimates_grid[-1].transpose(1,2).transpose(2,3).to(net.device())
-        flow_target = mini_batch['correspondence_map'].to(net.device())
+        flow_est = estimates_grid[-1].transpose(1,2).transpose(2,3).to(source_img.device)
+        flow_target = mini_batch['correspondence_map'].to(source_img.device)
 
         # applying mask
         mask_x_gt = flow_target[:, :, :, 0].ge(-1) & flow_target[:, :, :, 0].le(1)
@@ -61,14 +62,11 @@ def calculate_epe_hpatches(net, val_loader, img_size=240):
                               flow_est_y[mask_gt[:, :, :, 1]].unsqueeze(1)), dim=1)
 
         # let's calculate EPE
-        #aepe = EPE(flow_est_m, flow_target_m)
         aepe = epe(flow_est, flow_target)
         aepe_array.append(aepe.item())
         n_registered_pxs += flow_target.shape[0]
 
-    aepe_array = list(itertools.chain(*aepe_array))
-    print(n_registered_pxs)
-    return aepe_array
+    return np.asarray(aepe_array)
 
 
 def calculate_pck_hpatches(net, val_loader, alpha=1, im_size=240):

@@ -10,7 +10,7 @@ from model.modules import *
 
 def factory(type, in_channels):
     if type == 'level_0':
-        return CMD240x240(in_channels=in_channels, bn=True)
+        return CMD240x240(in_channels, True)
     elif type == 'level_1':
         return CMD120x120(in_channels=in_channels, bn=True)
     elif type == 'level_2':
@@ -34,8 +34,6 @@ class DGCNet(nn.Module):
         self.l2norm = FeatureL2Norm()
         # Correlation volume
         self.corr = CorrelationVolume()
-        # Bilinear upsampler
-        self.upsampler = nn.Upsample(scale_factor=2, mode='bilinear')
 
         if self.mask:
             self.matchability_net = MatchabilityNet(in_channels=128, bn=True)
@@ -71,51 +69,19 @@ class DGCNet(nn.Module):
 
         estimates_grid = [est_grid]
 
+        '''
+        create correspondence map decoder, upsampler for each level of
+        the feature pyramid
+        '''
         for k in reversed(range(4)):
             p1, p2 = target_pyr[k], source_pyr[k]
-            est_map = self.upsampler(esimates_grid[-1])
+            est_map = F.interpolate(input=estimates_grid[-1], scale_factor=2, mode='bilinear', align_corners=False)
 
             p1_w = F.grid_sample(p1, est_map.transpose(1,2).transpose(2,3))
             est_map = self.__dict__['_modules']['reg_' + str(k)](x1=p1_w, x2=p2, x3=est_map)
             estimates_grid.append(est_map)
 
-        '''
-        p1, p2 = target_pyr[3], source_pyr[3]
-        est_map = self.upsampler(estimates_grid[-1])
-
-        p1_w = F.grid_sample(p1, est_flow.transpose(1,2).transpose(2,3))
-        
-        # regressing the correspondence map
-        est_map = self.__dict__['_modules']['reg_3'](x1=p1_w, x2=p2, x3=est_map)
-        estimates_grid.append(est_map)
-
-        p1, p2 = target_pyr[2], source_pyr[2]
-        est_map = self.upsampler(estimates_grid[-1])
-
-        p1_w = F.grid_sample(p1, est_map.transpose(1,2).transpose(2,3))
-
-        # regressing the correspondence map
-        est_map = self.__dict__['_modules']['reg_2'](x1=p1_w, x2=p2, x3=est_map)
-        estimates_grid.append(est_map)
-
-        p1, p2 = target_pyr[1], source_pyr[1]
-        est_map = self.upsampler(estimates_grid[-1])
-
-        p1_w = F.grid_sample(p1, est_map.tranpose(1,2).transpose(2,3))
-
-        # regressing the correspondence map
-        est_map = self.__dict__['_modules']['reg_1'](x1=p1_w, x2=p2, x3=est_map)
-        estimates_grid.append(est_map)
-
-        p1, p2 = target_pyr[0], source_pyr[0]
-        est_map = self.upsampler(estimates_grid[-1])
-
-        p1_w = F.grid_sample(p1, est_map.transpose(1,2).transpose(2,3))
-
-        est_map = self.__dict__['_modules']['reg_0'](x1=p1_w, x2=p2, init_flow=est_flow)
-        estimates_grid.append(est_flow)
-        '''
-
+        # matchability mask
         matchability = None
         if self.mask:
             matchability = self.matchability_net(x1=p1_w, x2=p2)
