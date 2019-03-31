@@ -415,3 +415,4 @@ class TpsGridGen(Module):
                        torch.mul(A_Y[:,:,:,:,2],points_Y_batch) + \
                        torch.sum(torch.mul(W_Y,U.expand_as(W_Y)),4)
         return torch.cat((points_X_prime, points_Y_prime), 3)
+
