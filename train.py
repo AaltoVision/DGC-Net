@@ -13,12 +13,11 @@ from torchvision import models
 import torch.optim.lr_scheduler as lr_scheduler
 
 from data.dataset import HomoAffTpsDataset #, SUN3DDataset, HomographyDataset, HomoAffPascalTMDataset
-from util.loss import L1LossMasked
+from utils.loss import L1LossMasked
 from util.train_eval_routine import train_epoch, validate_epoch
 
 from model.net import DGCNet
 
-import gc
 from tqdm import tqdm
 
 from scipy.misc import toimage

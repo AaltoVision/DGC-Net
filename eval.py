@@ -14,7 +14,7 @@ import fnmatch
 
 from model.net import DGCNet
 from data.dataset import HPatchesDataset
-from utils import calculate_epe_hpatches
+from utils.evaluate import calculate_epe_hpatches
 
 
 # Argument parsing
