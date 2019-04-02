@@ -33,7 +33,7 @@ def calculate_epe_hpatches(net, val_loader, img_size=240):
         bs, _, _, _ = source_img.shape
 
         # net prediction
-        estimates_grid = net(source_img, target_img)
+        estimates_grid, estimates_mask = net(source_img, target_img)
 
         flow_est = estimates_grid[-1].transpose(1,2).transpose(2,3).to(net.device())
         flow_target = mini_batch['correspondence_map'].to(net.device())
