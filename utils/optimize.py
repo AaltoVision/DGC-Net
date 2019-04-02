@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 import cv2
 
+
 def train_epoch(net,
                 optimizer,
                 train_loader,
@@ -12,7 +13,6 @@ def train_epoch(net,
                 criterion_matchability=None,
                 loss_grid_weights=[1, 1, 1, 1, 1],
                 L_coeff=1):
-
 
     net.train()
     running_total_loss = 0
@@ -78,3 +78,22 @@ def train_epoch(net,
 
     running_total_loss /= len(train_loader)
     return running_total_loss
+
+
+def validate_epoch(net,
+                   val_loader,
+                   criterion_grid,
+                   criterion_matchability=None,
+                   loss_grid_weights=[1, 1, 1, 1, 1],
+                   L_coeff=1)
+
+    net.eval()
+    bilinear_coeffs = [16, 8, 4, 2, 1]
+    aepe_arrays_240x240 = [[] for _ in bilinear_coeffs]
+
+    pbar = tqdm(enumerate(val_loader), total=len(val_loader))
+    for i, mini_batch in pbar:
+        # net predictions
+        estimates_grid, estimates_mask = net(mini_batch['source_image'].to(net.device()),
+                                             mini_batch['target_image'].to(net.device()))
+        
