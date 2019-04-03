@@ -22,9 +22,9 @@ parser = argparse.ArgumentParser(description='DGC-Net')
 # Paths
 parser.add_argument('--csv-path', type=str, default='data/csv',
                     help='path to training transformation csv folder')
-parser.add_argument('--image-path', type=str, default='data',
+parser.add_argument('--image-path', type=str, default='data/hpatches-geometry',
                     help='path to folder containing training images')
-parser.add_argument('--model', type=str, default='dgc',
+parser.add_argument('--model', type=str, default='dgcm',
                     help='Model to use', choices=['dgc', 'dgcm'])
 parser.add_argument('--metric', type=str, default='aepe',
                     help='Model to use', choices=['aepe', 'pck'])

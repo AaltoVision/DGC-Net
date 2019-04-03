@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import itertools
+import torch
 
 
 def epe(input_flow, target_flow):
@@ -60,7 +61,7 @@ def calculate_epe_hpatches(net, val_loader, device, img_size=240):
         estimates_grid, estimates_mask = net(source_img, target_img)
 
         flow_est = estimates_grid[-1].permute(0, 2, 3, 1).to(device)
-        flow_target = mini_batch['correspondence_map'].to(net.device())
+        flow_target = mini_batch['correspondence_map'].to(device)
 
         # applying mask
         mask_x_gt = \
@@ -93,7 +94,6 @@ def calculate_epe_hpatches(net, val_loader, device, img_size=240):
         aepe_array.append(aepe.item())
         n_registered_pxs += flow_target.shape[0]
 
-    aepe_array = list(itertools.chain(*aepe_array))
     return aepe_array
 
 
