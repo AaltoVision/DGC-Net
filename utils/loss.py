@@ -17,4 +17,6 @@ class L1LossMasked(L.L1Loss):
         Output:
             L1 loss [value]
         """
-        return F.l1_loss(est, target, size_average=False) / (N_valid_pxs + 1e-8)
+        return F.l1_loss(est,
+                         target,
+                         size_average=False) / (N_valid_pxs + 1e-8)

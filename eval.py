@@ -24,9 +24,12 @@ parser.add_argument('--csv-path', type=str, default='data/csv',
                     help='path to training transformation csv folder')
 parser.add_argument('--image-path', type=str, default='/ssd_storage/projects/geometric_verification/hpatches-geometry',
                     help='path to folder containing training images')
-parser.add_argument('--model', type=str, default='dgc', help='Model to use', choices=['dgc', 'dgcm'])
-parser.add_argument('--metric', type=str, default='aepe', help='Model to use', choices=['aepe', 'pck'])
-parser.add_argument('--batch-size', type=int, default=1, help='evaluation batch size')
+parser.add_argument('--model', type=str, default='dgc',
+                    help='Model to use', choices=['dgc', 'dgcm'])
+parser.add_argument('--metric', type=str, default='aepe',
+                    help='Model to use', choices=['aepe', 'pck'])
+parser.add_argument('--batch-size', type=int, default=1,
+                    help='evaluation batch size')
 parser.add_argument('--seed', type=int, default=1984, help='Pseudo-RNG seed')
 
 args = parser.parse_args()
@@ -53,10 +56,12 @@ if args.model == 'dgc':
 elif args.model == 'dgcm':
     net = DGCNet(mask=True)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 net.load_state_dict(torch.load(checkpoint_fname)['state_dict'])
 net = nn.DataParallel(net)
 net.eval()
-net.cuda()
+net = net.to(device)
 
 with torch.no_grad():
     number_of_scenes = 5
@@ -68,22 +73,29 @@ with torch.no_grad():
         res = np.zeros((number_of_scenes, len(threshold_range)))
 
     # loop over scenes (1-2, 1-3, 1-4, 1-5, 1-6)
-    for id, k in enumerate(range(2, number_of_scenes+2)):
-        test_dataset = HPatchesDataset(csv_file=osp.join(args.csv_path, 'hpatches_1_'+str(k)+'.csv'),
-                                         image_path_orig=args.image_path,
-                                         transforms=dataset_transforms)
+    for id, k in enumerate(range(2, number_of_scenes + 2)):
+        test_dataset = \
+            HPatchesDataset(csv_file=osp.join(args.csv_path,
+                                              'hpatches_1_{}.csv'.format(k)),
+                            image_path_orig=args.image_path,
+                            transforms=dataset_transforms)
 
-        test_dataloader = DataLoader(test_dataset, 
+        test_dataloader = DataLoader(test_dataset,
                                      batch_size=args.batch_size,
                                      shuffle=False,
                                      num_workers=4)
 
         if (args.metric == 'aepe'):
-            epe_arr = calculate_epe_hpatches(net, test_dataloader)
+            epe_arr = calculate_epe_hpatches(net,
+                                             test_dataloader,
+                                             device)
             res.append(np.mean(epe_arr))
 
         if (args.metric == 'pck'):
             for t_id, threshold in enumerate(threshold_range):
-                res[id, t_id] = calculate_pck_hpatches(net, test_dataloader, alpha=threshold)
+                res[id, t_id] = calculate_pck_hpatches(net,
+                                                       test_dataloader,
+                                                       device,
+                                                       alpha=threshold)
 
     print(res)

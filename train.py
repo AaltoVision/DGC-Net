@@ -2,7 +2,8 @@ import numpy as np
 import argparse
 import time
 import random
-import os, fnmatch
+import os
+import fnmatch
 from os import path as osp
 from scipy.misc import toimage
 from termcolor import cprint, colored
@@ -29,7 +30,8 @@ parser = argparse.ArgumentParser(description='DGC-Net train script')
 # Paths
 parser.add_argument('--data-path', type=str, default='./data',
                     help='path to TokyoTimeMachine dataset and csv files')
-parser.add_argument('--model', type=str, default='dgc', help='Model to use', choices=['dgc', 'dgcm'])
+parser.add_argument('--model', type=str, default='dgc', help='Model to use',
+                    choices=['dgc', 'dgcm'])
 parser.add_argument('--snapshots', type=str, default='./snapshots')
 parser.add_argument('--logs', type=str, default='./logs')
 # Optimization parameters
@@ -37,10 +39,14 @@ parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 parser.add_argument('--momentum', type=float,
                     default=0.9, help='momentum constant')
 parser.add_argument('--start_epoch', type=int, default=-1, help='start epoch')
-parser.add_argument('--n_epoch', type=int, default=70, help='number of training epochs')
-parser.add_argument('--batch-size', type=int, default=32, help='training batch size')
-parser.add_argument('--n_threads', type=int, default=8, help='number of parallel threads for dataloaders')
-parser.add_argument('--weight-decay', type=float, default=0.00001, help='weight decay constant')
+parser.add_argument('--n_epoch', type=int, default=70,
+                    help='number of training epochs')
+parser.add_argument('--batch-size', type=int, default=32,
+                    help='training batch size')
+parser.add_argument('--n_threads', type=int, default=8,
+                    help='number of parallel threads for dataloaders')
+parser.add_argument('--weight-decay', type=float, default=0.00001,
+                    help='weight decay constant')
 parser.add_argument('--seed', type=int, default=1984, help='Pseudo-RNG seed')
 
 args = parser.parse_args()
@@ -56,11 +62,8 @@ if not osp.isdir(osp.join(args.snapshots, cur_snapshot)):
 with open(osp.join(args.snapshots, cur_snapshot, 'args.pkl'), 'wb') as f:
     pickle.dump(args, f)
 
-cuda = True
-if cuda and not torch.cuda.is_available():
-    raise Exception("No GPU found, please run with --nocuda")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-device = torch.device("cuda" if cuda else "cpu")
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -75,16 +78,18 @@ dataset_transforms = transforms.Compose([
     ])
 
 pyramid_param = [15, 30, 60, 120, 240]
-weights_loss_coeffs = [1, 1, 1, 1, 1]
-weights_loss_feat = [1, 1, 1, 1]
 
 train_dataset = HomoAffTpsDataset(image_path=args.data_path,
-                                  csv_file=osp.join(args.data_path, 'csv', 'homo_aff_tps_train.csv'),
+                                  csv_file=osp.join(args.data_path,
+                                                    'csv',
+                                                    'homo_aff_tps_train.csv'),
                                   transforms=dataset_transforms,
                                   pyramid_param=pyramid_param)
 
 val_dataset = HomoAffTpsDataset(image_path=args.data_path,
-                                csv_file=osp.join(args.data_path, 'csv', 'homo_aff_tps_test.csv'),
+                                csv_file=osp.join(args.data_path,
+                                                  'csv',
+                                                  'homo_aff_tps_test.csv'),
                                 transforms=dataset_transforms,
                                 pyramid_param=pyramid_param)
 
@@ -112,12 +117,16 @@ model = nn.DataParallel(model)
 model = model.to(device)
 
 # Optimizer
-optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                       lr=args.lr,
+                       weight_decay=args.weight_decay)
 # Scheduler
-scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[2,15,30,45,60], gamma=0.1)
+scheduler = lr_scheduler.MultiStepLR(optimizer,
+                                     milestones=[2, 15, 30, 45, 60],
+                                     gamma=0.1)
 # Criterions
 criterion_grid = L1LossMasked().to(device)
-criterion_matchability = nn.BCEWithLogitsLoss().to(device)
+criterion_match = nn.BCEWithLogitsLoss().to(device)
 
 train_losses = []
 val_losses = []
@@ -133,7 +142,7 @@ for epoch in range(args.n_epoch):
                              train_dataloader,
                              device,
                              criterion_grid=criterion_grid,
-                             criterion_matchability=criterion_matchability,
+                             criterion_matchability=criterion_match,
                              loss_grid_weights=weights_loss_coeffs)
     train_losses.append(train_loss)
     print(colored('==> ', 'green') + 'Train average loss:', train_loss)
@@ -143,28 +152,37 @@ for epoch in range(args.n_epoch):
                                    val_dataloader,
                                    device,
                                    criterion_grid=criterion_grid,
-                                   criterion_matchability=criterion_matchability,
+                                   criterion_matchability=criterion_match,
                                    loss_grid_weights=weights_loss_coeffs)
     print(colored('==> ', 'blue') + 'Val average grid loss :', val_loss_grid)
-    print(colored('==> ', 'blue') + 'epoch :', epoch+1)
+    print(colored('==> ', 'blue') + 'epoch :', epoch + 1)
     val_losses.append(total_val_loss)
 
-    np.save(osp.join(args.snapshots, cur_snapshot, 'logs.npy'), 
-            [train_losses,val_losses])
+    np.save(osp.join(args.snapshots, cur_snapshot, 'logs.npy'),
+            [train_losses, val_losses])
 
     if epoch > args.start_epoch:
-        # We will be saving only the snapshot which has lowest loss value on the validation set
-        cur_snapshot_name = osp.join(args.snapshots, cur_snapshot, 'epoch_{}.pth'.format(epoch + 1))
+        '''
+        We will be saving only the snapshot which
+        has lowest loss value on the validation set
+        '''
+        cur_snapshot_name = osp.join(args.snapshots,
+                                     cur_snapshot,
+                                     'epoch_{}.pth'.format(epoch + 1))
         if prev_model is None:
-            torch.save({'state_dict': model.module.state_dict(), 'optimizer': optimizer.state_dict()}, cur_snapshot_name)
+            torch.save({'state_dict': model.module.state_dict(),
+                        'optimizer': optimizer.state_dict()},
+                       cur_snapshot_name)
             prev_model = cur_snapshot_name
             best_val = running_loss_grid
         else:
             if running_loss_grid < best_val:
                 os.remove(prev_model)
                 best_val = running_loss_grid
-                print('Saved snapshot:',cur_snapshot_name)
-                torch.save({'state_dict': model.module.state_dict(), 'optimizer': optimizer.state_dict()}, cur_snapshot_name)
+                print('Saved snapshot:', cur_snapshot_name)
+                torch.save({'state_dict': model.module.state_dict(),
+                            'optimizer': optimizer.state_dict()},
+                           cur_snapshot_name)
                 prev_model = cur_snapshot_name
 
 print(args.seed, 'Training took:', time.time()-train_started, 'seconds')
