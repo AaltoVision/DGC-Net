@@ -11,7 +11,7 @@ DGCM-Net (paper) | 2.97 | 6.85 | 9.95 | 12.87 | 19.13
 DGC-Net (repo) | 1.74 | 5.88 | 9.07 | 12.14 | 16.50
 DGCM-Net (repo) | 2.33 | 5.62 | 9.55 | **11.59** | **16.48**
 
-Note: There is a difference in numbers presented in the original paper and obtained by the models of this repo. 
+Note: There is a difference in numbers presented in the original paper and obtained by the models of this repo. It might be related to the fact that both models (DGC-Net and DGCM-Net) have been trained using ```Pytorch v0.3```.
 
 ## How to cite
 If you use this software in your own research, please cite our publication:
