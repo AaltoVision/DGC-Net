@@ -12,7 +12,7 @@ def train_epoch(net,
                 device,
                 criterion_grid,
                 criterion_matchability=None,
-                loss_grid_weights=[1, 1, 1, 1, 1],
+                loss_grid_weights=None,
                 L_coeff=1):
     """
     Training epoch script
@@ -34,6 +34,8 @@ def train_epoch(net,
     net.train()
     running_total_loss = 0
     running_match_loss = 0
+    if loss_grid_weights is None:
+        loss_grid_weights = [1, 1, 1, 1, 1]
 
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
     for i, mini_batch in pbar:
@@ -45,9 +47,8 @@ def train_epoch(net,
             net(mini_batch['source_image'].to(device),
                 mini_batch['target_image'].to(device))
 
-        if criterion_matchability is None:
-            assert not estimates_mask,
-            'Cannot use `criterion_matchability` without mask estimates'
+        if criterion_matchability is None and not estimates_mask:
+            raise ValueError('Cannot use `criterion_matchability` without mask estimates')
 
         Loss_masked_grid = 0
         EPE_loss = 0
@@ -119,7 +120,7 @@ def validate_epoch(net,
                    device,
                    criterion_grid,
                    criterion_matchability=None,
-                   loss_grid_weights=[1, 1, 1, 1, 1],
+                   loss_grid_weights=None,
                    L_coeff=1):
     """
     Validation epoch script
@@ -138,6 +139,9 @@ def validate_epoch(net,
     """
 
     net.eval()
+    if loss_grid_weights:
+        loss_grid_weights = [1, 1, 1, 1, 1]
+
     bilinear_coeffs = [16, 8, 4, 2, 1]
     aepe_arrays_240x240 = [[] for _ in bilinear_coeffs]
     running_total_loss = 0
@@ -151,9 +155,8 @@ def validate_epoch(net,
                 net(mini_batch['source_image'].to(device),
                     mini_batch['target_image'].to(device))
 
-            if criterion_matchability is None:
-                assert not estimates_mask,
-                'Cannot use `criterion_matchability` without mask estimates'
+            if criterion_matchability is not None and estimates_mask is None:
+                raise ValueError('Cannot use criterion_matchability without mask estimates')
 
             Loss_masked_grid = 0
             # grid loss components (over all layers of the feature pyramid):
@@ -209,5 +212,4 @@ def validate_epoch(net,
                     'R_total_loss: %.3f/%.3f' % (running_total_loss / (i + 1),
                                                  Loss.item()))
 
-    running_total_loss /= len(train_loader)
-    return running_total_loss
+    return running_total_loss / len(val_loader)
