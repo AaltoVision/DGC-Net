@@ -10,3 +10,20 @@ DGC-Net (paper) | **1.55** | **5.53** | **8.98** | 11.66 | 16.70
 DGCM-Net (paper) | 2.97 | 6.85 | 9.95 | 12.87 | 19.13
 DGC-Net (repo) | 1.74 | 5.88 | 9.07 | 12.14 | 16.50
 DGCM-Net (repo) | 2.33 | 5.62 | 9.55 | **11.59** | **16.48**
+Note: There is a difference in numbers presented in the original paper and obtained by the models of this repo. 
+
+## How to cite
+If you use this software in your own research, please cite our publication:
+
+```
+@inproceedings{Melekhov+Tiulpin+Sattler+Pollefeys+Rahtu+Kannala:2018,
+      title = {{DGC-Net}: Dense geometric correspondence network},
+      author = {Melekhov, Iaroslav and Tiulpin, Aleksei and 
+               Sattler, Torsten, and 
+               Pollefeys, Marc and 
+               Rahtu, Esa and Kannala, Juho},
+       year = {2019},
+       booktitle = {Proceedings of the IEEE Winter Conference on 
+                    Applications of Computer Vision (WACV)}
+}
+```
