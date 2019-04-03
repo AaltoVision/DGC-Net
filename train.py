@@ -1,8 +1,13 @@
 import numpy as np
 import argparse
 import time
+import random
 import os, fnmatch
 from os import path as osp
+from scipy.misc import toimage
+from termcolor import cprint, colored
+import pickle
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -11,21 +16,12 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as transforms
 from torchvision import models
 import torch.optim.lr_scheduler as lr_scheduler
-
-from data.dataset import HomoAffTpsDataset #, SUN3DDataset, HomographyDataset, HomoAffPascalTMDataset
-from utils.loss import L1LossMasked
-from util.train_eval_routine import train_epoch, validate_epoch
-
-from model.net import DGCNet
-
 from tqdm import tqdm
 
-from scipy.misc import toimage
-from termcolor import cprint, colored
-
-import pickle
-from PIL import Image
-
+from data.dataset import HomoAffTpsDataset
+from utils.loss import L1LossMasked
+from utils.optimize import train_epoch, validate_epoch
+from model.net import DGCNet
 
 
 # Argument parsing
@@ -83,12 +79,12 @@ weights_loss_coeffs = [1, 1, 1, 1, 1]
 weights_loss_feat = [1, 1, 1, 1]
 
 train_dataset = HomoAffTpsDataset(image_path=args.data_path,
-                                  csv_file=osp.join(args.data_path, csv, 'homo_aff_tps_train.csv'),
+                                  csv_file=osp.join(args.data_path, 'csv', 'homo_aff_tps_train.csv'),
                                   transforms=dataset_transforms,
                                   pyramid_param=pyramid_param)
 
 val_dataset = HomoAffTpsDataset(image_path=args.data_path,
-                                csv_file=osp.join(args.data_path, csv, 'homo_aff_tps_test.csv'),
+                                csv_file=osp.join(args.data_path, 'csv', 'homo_aff_tps_test.csv'),
                                 transforms=dataset_transforms,
                                 pyramid_param=pyramid_param)
 
@@ -132,29 +128,27 @@ train_started = time.time()
 for epoch in range(args.n_epoch):
     scheduler.step()
     # Training one epoch
-    train_loss = train_epoch(model, optimizer, train_dataloader, criterion_grid=criterion_grid, criterion_matchability=criterion_matchability, loss_grid_weights=weights_loss_coeffs)
+    train_loss = train_epoch(model,
+                             optimizer,
+                             train_dataloader,
+                             device,
+                             criterion_grid=criterion_grid,
+                             criterion_matchability=criterion_matchability,
+                             loss_grid_weights=weights_loss_coeffs)
     train_losses.append(train_loss)
     print(colored('==> ', 'green') + 'Train average loss:', train_loss)
 
     # Validation
-    running_loss_grid, aepe_arrays_240x240 = validate_epoch(model, val_dataloader, criterion_grid=criterion_grid, criterion_matchability=criterion_matchability, loss_grid_weights=weights_loss_coeffs)
-    total_val_loss = running_loss_grid #+ running_loss_feat + running_loss_image
-    print(colored('==> ', 'blue') + 'Val average grid loss :', running_loss_grid)
-    #print(colored('==> ', 'blue') + 'Val average feat loss :', running_loss_feat)
-    #print(colored('==> ', 'blue') + 'Val average image loss :', running_loss_image)
-    #print(colored('==> ', 'blue') + 'Val average grid masked loss :', running_loss_masked_grid)
-    for i in range(len(aepe_arrays_240x240)):
-        print(colored('==> ', 'blue') + 'layer {}: mean AEPE_240x240: {}'.format(i, np.mean(aepe_arrays_240x240[i])))
+    val_loss_grid = validate_epoch(model,
+                                   val_dataloader,
+                                   device,
+                                   criterion_grid=criterion_grid,
+                                   criterion_matchability=criterion_matchability,
+                                   loss_grid_weights=weights_loss_coeffs)
+    print(colored('==> ', 'blue') + 'Val average grid loss :', val_loss_grid)
     print(colored('==> ', 'blue') + 'epoch :', epoch+1)
-
     val_losses.append(total_val_loss)
 
-    writer.add_scalars('Losses', {'train':train_loss, 'val':total_val_loss}, epoch)
-    #writer.add_scalars('AEPEs', {'l0':aepe_by_layer[0], 'l1':aepe_by_layer[1], 'l2':aepe_by_layer[2], 'l3':aepe_by_layer[3], 'l4':aepe_by_layer[4]}, epoch)
-    #writer.add_scalars('AEPEs_orig',    {'l0':aepe_by_layer_orig[0],    'l1':aepe_by_layer_orig[1],    'l2':aepe_by_layer_orig[2],    'l3':aepe_by_layer_orig[3]}, epoch)
-    writer.add_scalars('AEPEs_240x240', {'l0':np.mean(aepe_arrays_240x240[0]), 'l1':np.mean(aepe_arrays_240x240[1]), 'l2':np.mean(aepe_arrays_240x240[2]), 'l3':np.mean(aepe_arrays_240x240[3]), 'l4':np.mean(aepe_arrays_240x240[-1])}, epoch)
-    
-    # Not clear if we need it after integrating tensorboard
     np.save(osp.join(args.snapshots, cur_snapshot, 'logs.npy'), 
             [train_losses,val_losses])
 
@@ -173,5 +167,4 @@ for epoch in range(args.n_epoch):
                 torch.save({'state_dict': model.module.state_dict(), 'optimizer': optimizer.state_dict()}, cur_snapshot_name)
                 prev_model = cur_snapshot_name
 
-gc.collect()
 print(args.seed, 'Training took:', time.time()-train_started, 'seconds')

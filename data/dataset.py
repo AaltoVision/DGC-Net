@@ -4,10 +4,59 @@ import pandas as pd
 from os import path as osp
 
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
+import torch.nn.functional as F
+
+
+def center_crop(img, size):
+    """
+    Get the center crop of the input image
+    Args:
+        img: input image [BxCxHxW]
+        size: size of the center crop (tuple)
+    Output:
+        img_pad: center crop
+        x, y: coordinates of the crop
+    """
+
+    if not isinstance(size, tuple):
+        size = (size, size)
+
+    img = img.copy()
+    w, h = img.shape[1::-1]
+    
+    pad_w = 0
+    pad_h = 0
+    if w < size[0]:
+        pad_w = np.uint16((size[0] - w)/2)
+    if h < size[1]:
+        pad_h = np.uint16((size[1] - h)/2)
+    img_pad = cv2.copyMakeBorder(img, pad_h, pad_h, pad_w, pad_w, cv2.BORDER_CONSTANT, value=[0,0,0])
+    w, h = img_pad.shape[1::-1]
+
+    x1 = w//2 - size[0]//2
+    y1 = h//2 - size[1]//2
+
+    img_pad = img_pad[y1:y1 + size[1], x1:x1 + size[0], :]
+
+    return img_pad, x1, y1
 
 
 class HPatchesDataset(Dataset):
+    """
+    HPatches dataset (for evaluation)
+    Args:
+        csv_file: csv file with ground-truth data
+        image_path_orig: filepath to the dataset (full resolution)
+        transforms: image transformations (data preprocessing)
+        image_size: size (tuple) of the output images
+    Output:
+        source_image: source image
+        target_image: target image
+        correspondence_map: pixel correspondence map between source and target views
+        mask: valid/invalid correspondences
+    """
     def __init__(self, csv_file, image_path_orig, transforms, image_size=(240,240)):
         self.df = pd.read_csv(csv_file)
         self.image_path_orig = image_path_orig
@@ -78,6 +127,23 @@ class HPatchesDataset(Dataset):
 
 
 class HomoAffTpsDataset(Dataset):
+    """
+    Main dataset for training/validation the proposed approach. It can handle affine, TPS, and
+    Homography transformations.
+    Args:
+        image_path: filepath to the dataset (either TokyoTimeMachine or Pascal-VOC)
+        csv_file: csv file with ground-truth data
+        transforms: image transformations (data preprocessing)
+        pyramid_param: spatial resolution of the feature maps at each level 
+            of the feature pyramid (list)
+        output_size: size (tuple) of the output images
+    Output:
+        source_image: source image
+        target_image: target image
+        correspondence_map_pyro: pixel correspondence map for each feature pyramid level
+        mask_x: X component of the mask (valid/invalid correspondences)
+        mask_y: Y component of the mask (valid/invalid correspondences)
+    """
     def __init__(self,
                 image_path,
                 csv_file,
@@ -163,6 +229,14 @@ class HomoAffTpsDataset(Dataset):
         return grid_full.unsqueeze(0), grid_crop.unsqueeze(0)
 
     def symmetric_image_pad(self, image_batch, padding_factor):
+        """
+        Pad an input image mini-batch symmetrically
+        Args:
+            image_batch: an input image mini-batch to be pre-processed
+            padding_factor: padding factor
+        Output:
+            image_batch: padded image mini-batch
+        """
         b, c, h, w = image_batch.size()
         pad_h, pad_w = int(h*padding_factor), int(w*padding_factor)
         idx_pad_left  = torch.LongTensor(range(pad_w - 1, -1, -1))
@@ -186,7 +260,7 @@ class HomoAffTpsDataset(Dataset):
 
         if ((transform_type == 0) or (transform_type == 1)): # affine transformation
             # read image
-            source_img_name = os.path.join(self.img_path, data.fname)
+            source_img_name = osp.join(self.img_path, data.fname)
             source_img = cv2.cvtColor(cv2.imread(source_img_name), cv2.COLOR_BGR2RGB)
 
             if (transform_type == 0):
@@ -222,7 +296,7 @@ class HomoAffTpsDataset(Dataset):
             # Homography matrix for 768x576 image resolution
             theta = data.iloc[2:11].values.astype('double').reshape(3,3)
             
-            img_src_orig = cv2.cvtColor(cv2.resize(cv2.imread(os.path.join(self.img_path, data.fname)), None, fx=1.2, fy=1.2, interpolation=cv2.INTER_LINEAR), cv2.COLOR_BGR2RGB)
+            img_src_orig = cv2.cvtColor(cv2.resize(cv2.imread(osp.join(self.img_path, data.fname)), None, fx=1.2, fy=1.2, interpolation=cv2.INTER_LINEAR), cv2.COLOR_BGR2RGB)
 
             # get a central crop:
             img_src_crop, x1_crop, y1_crop = center_crop(img_src_orig, self.W_OUT)
@@ -282,7 +356,7 @@ class HomoAffTpsDataset(Dataset):
                 'correspondence_map_pyro': grid_pyramid, 'mask_x': mask_x, 'mask_y': mask_y}
 
 
-class TpsGridGen(Module):
+class TpsGridGen(nn.Module):
     """
     Adopted version of synthetically transformed pairs dataset by I.Rocco
     https://github.com/ignacio-rocco/cnngeometric_pytorch

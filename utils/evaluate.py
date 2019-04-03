@@ -2,18 +2,32 @@ from tqdm import tqdm
 import itertools
 
 
-
 def epe(input_flow, target_flow):
     """
     End-point-Error computation
+    Args:
+        input_flow: estimated flow [BxHxWx2]
+        target_flow: ground-truth flow [BxHxWx2]
+    Output:
+        Averaged end-point-error (value)
     """
     return torch.norm(target_flow - input_flow, p=2, dim=1).mean()
 
 
 def correct_correspondences(input_flow, target_flow, alpha, im_size=240):
+    """
+    Computation PCK, i.e number of the pixels within a certain threshold
+    Args:
+        input_flow: estimated flow [BxHxWx2]
+        target_flow: ground-truth flow [BxHxWx2]
+        alpha: threshold
+        im_size: image size 
+    Output:
+        PCK metric
+    """
     input_flow = input_flow.unsqueeze(0)
     target_flow = target_flow.unsqueeze(0)
-    dist = torch.norm(target_flow - input_flow,p=2,dim=0).unsqueeze(0)
+    dist = torch.norm(target_flow - input_flow, p=2, dim=0).unsqueeze(0)
 
     pck_threshold = alpha * im_size
     mask = dist.le(pck_threshold)
@@ -22,6 +36,15 @@ def correct_correspondences(input_flow, target_flow, alpha, im_size=240):
 
 
 def calculate_epe_hpatches(net, val_loader, img_size=240):
+    """
+    Compute EPE for HPatches dataset
+    Args:
+        net: trained model
+        val_loader: input dataloader
+        img_size: size of input images
+    Output:
+        aepe_array: averaged EPE for the whole sequence of HPatches
+    """
     aepe_array = []
     n_registered_pxs = 0
 
@@ -45,7 +68,7 @@ def calculate_epe_hpatches(net, val_loader, img_size=240):
         mask_gt = torch.cat((mask_xx_gt.unsqueeze(3), mask_xx_gt.unsqueeze(3)), dim=3)
 
         for i in range(bs):
-            # unnormalize the flow: [-1;1] -> [0;239]
+            # unnormalize the flow: [-1; 1] -> [0; im_size - 1]
             flow_target[i] = (flow_target[i] + 1) * (img_size - 1) / (1 + 1)
             flow_est[i]    = (flow_est[i] + 1) * (img_size - 1) / (1 + 1)
 
@@ -66,11 +89,21 @@ def calculate_epe_hpatches(net, val_loader, img_size=240):
         n_registered_pxs += flow_target.shape[0]
 
     aepe_array = list(itertools.chain(*aepe_array))
-    print(n_registered_pxs)
     return aepe_array
 
 
 def calculate_pck_hpatches(net, val_loader, alpha=1, im_size=240):
+    """
+    Compute PCK for HPatches dataset
+    Args:
+        net: trained model
+        val_loader: input dataloader
+        alpha: threshold to compute PCK
+        img_size: size of input images
+    Output:
+        pck: pck value for the whole sequence of HPatches for a
+            particular threhold `alpha`
+    """
     total_number_of_correspondences = 0
     total_correct_correspondences = 0
 
@@ -94,7 +127,7 @@ def calculate_pck_hpatches(net, val_loader, alpha=1, im_size=240):
         mask_gt = torch.cat((mask_xx_gt.unsqueeze(3), mask_xx_gt.unsqueeze(3)), dim=3)
 
         for i in range(bs):
-            # unnormalize the flow: [-1;1] -> [0;239]
+            # unnormalize the flow: [-1; 1] -> [0; im_size - 1]
             flow_target[i] = (flow_target[i] + 1) * (img_size - 1) / (1 + 1)
             flow_est[i]    = (flow_est[i] + 1) * (img_size - 1) / (1 + 1)
 
