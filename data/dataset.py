@@ -278,13 +278,13 @@ class HomoAffTpsDataset(Dataset):
 
         # getting the central patch from the pivot
         Xwarp_crop = X_grid_pivot[Y_CCROP:Y_CCROP + H_SCALE,
-                     X_CCROP:X_CCROP + W_SCALE]
+                                  X_CCROP:X_CCROP + W_SCALE]
         Ywarp_crop = Y_grid_pivot[Y_CCROP:Y_CCROP + H_SCALE,
-                     X_CCROP:X_CCROP + W_SCALE]
+                                  X_CCROP:X_CCROP + W_SCALE]
         X_crop = X_[Y_CCROP:Y_CCROP + H_SCALE,
-                 X_CCROP:X_CCROP + W_SCALE]
+                    X_CCROP:X_CCROP + W_SCALE]
         Y_crop = Y_[Y_CCROP:Y_CCROP + H_SCALE,
-                 X_CCROP:X_CCROP + W_SCALE]
+                    X_CCROP:X_CCROP + W_SCALE]
 
         # crop grid
         Xwarp_crop_range = \

@@ -19,6 +19,7 @@ from utils.loss import L1LossMasked
 from utils.optimize import train_epoch, validate_epoch
 from model.net import DGCNet
 
+
 if __name__ == "__main__":
     # Argument parsing
     parser = argparse.ArgumentParser(description='DGC-Net train script')
@@ -27,15 +28,16 @@ if __name__ == "__main__":
                         help='path to TokyoTimeMachine dataset and csv files')
     parser.add_argument('--metadata-path', type=str, default='./data/',
                         help='path to the CSV files')
-    parser.add_argument('--model', type=str, default='dgc', help='Model to use',
-                        choices=['dgc', 'dgcm'])
+    parser.add_argument('--model', type=str, default='dgc',
+                        help='Model to use', choices=['dgc', 'dgcm'])
     parser.add_argument('--snapshots', type=str, default='./snapshots')
     parser.add_argument('--logs', type=str, default='./logs')
     # Optimization parameters
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--momentum', type=float,
                         default=0.9, help='momentum constant')
-    parser.add_argument('--start_epoch', type=int, default=-1, help='start epoch')
+    parser.add_argument('--start_epoch', type=int, default=-1,
+                        help='start epoch')
     parser.add_argument('--n_epoch', type=int, default=70,
                         help='number of training epochs')
     parser.add_argument('--batch-size', type=int, default=32,
@@ -44,7 +46,8 @@ if __name__ == "__main__":
                         help='number of parallel threads for dataloaders')
     parser.add_argument('--weight-decay', type=float, default=0.00001,
                         help='weight decay constant')
-    parser.add_argument('--seed', type=int, default=1984, help='Pseudo-RNG seed')
+    parser.add_argument('--seed', type=int, default=1984,
+                        help='Pseudo-RNG seed')
     args = parser.parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -76,19 +79,21 @@ if __name__ == "__main__":
     weights_loss_coeffs = [1, 1, 1, 1, 1]
     weights_loss_feat = [1, 1, 1, 1]
 
-    train_dataset = HomoAffTpsDataset(image_path=args.image_data_path,
-                                      csv_file=osp.join(args.metadata_path,
-                                                        'csv',
-                                                        'homo_aff_tps_train.csv'),
-                                      transforms=dataset_transforms,
-                                      pyramid_param=pyramid_param)
+    train_dataset = \
+        HomoAffTpsDataset(image_path=args.image_data_path,
+                          csv_file=osp.join(args.metadata_path,
+                                            'csv',
+                                            'homo_aff_tps_train.csv'),
+                          transforms=dataset_transforms,
+                          pyramid_param=pyramid_param)
 
-    val_dataset = HomoAffTpsDataset(image_path=args.image_data_path,
-                                    csv_file=osp.join(args.metadata_path,
-                                                      'csv',
-                                                      'homo_aff_tps_test.csv'),
-                                    transforms=dataset_transforms,
-                                    pyramid_param=pyramid_param)
+    val_dataset = \
+        HomoAffTpsDataset(image_path=args.image_data_path,
+                          csv_file=osp.join(args.metadata_path,
+                                            'csv',
+                                            'homo_aff_tps_test.csv'),
+                          transforms=dataset_transforms,
+                          pyramid_param=pyramid_param)
 
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.batch_size,
@@ -114,9 +119,10 @@ if __name__ == "__main__":
     model = model.to(device)
 
     # Optimizer
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                           lr=args.lr,
-                           weight_decay=args.weight_decay)
+    optimizer = \
+        optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                   lr=args.lr,
+                   weight_decay=args.weight_decay)
     # Scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer,
                                          milestones=[2, 15, 30, 45, 60],
@@ -153,7 +159,8 @@ if __name__ == "__main__":
                                        criterion_grid=criterion_grid,
                                        criterion_matchability=criterion_match,
                                        loss_grid_weights=weights_loss_coeffs)
-        print(colored('==> ', 'blue') + 'Val average grid loss :', val_loss_grid)
+        print(colored('==> ', 'blue') + 'Val average grid loss :',
+              val_loss_grid)
         print(colored('==> ', 'blue') + 'epoch :', epoch + 1)
         val_losses.append(val_loss_grid)
 

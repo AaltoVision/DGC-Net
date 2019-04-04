@@ -48,7 +48,8 @@ def train_epoch(net,
                 mini_batch['target_image'].to(device))
 
         if criterion_matchability is not None and estimates_mask is None:
-            raise ValueError('Cannot use `criterion_matchability` without mask estimates')
+            raise ValueError('Cannot use `criterion_matchability` \
+                without mask estimates')
 
         Loss_masked_grid = 0
         EPE_loss = 0
@@ -156,7 +157,8 @@ def validate_epoch(net,
                     mini_batch['target_image'].to(device))
 
             if criterion_matchability is not None and estimates_mask is None:
-                raise ValueError('Cannot use criterion_matchability without mask estimates')
+                raise ValueError('Cannot use criterion_matchability \
+                    without mask estimates')
 
             Loss_masked_grid = 0
             # grid loss components (over all layers of the feature pyramid):
