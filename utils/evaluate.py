@@ -15,14 +15,14 @@ def epe(input_flow, target_flow):
     return torch.norm(target_flow - input_flow, p=2, dim=1).mean()
 
 
-def correct_correspondences(input_flow, target_flow, alpha, im_size=240):
+def correct_correspondences(input_flow, target_flow, alpha, img_size=240):
     """
     Computation PCK, i.e number of the pixels within a certain threshold
     Args:
         input_flow: estimated flow [BxHxWx2]
         target_flow: ground-truth flow [BxHxWx2]
         alpha: threshold
-        im_size: image size
+        img_size: image size
     Output:
         PCK metric
     """
@@ -30,7 +30,7 @@ def correct_correspondences(input_flow, target_flow, alpha, im_size=240):
     target_flow = target_flow.unsqueeze(0)
     dist = torch.norm(target_flow - input_flow, p=2, dim=0).unsqueeze(0)
 
-    pck_threshold = alpha * im_size
+    pck_threshold = alpha * img_size
     mask = dist.le(pck_threshold)
 
     return len(dist[mask.detach()])
@@ -97,7 +97,7 @@ def calculate_epe_hpatches(net, val_loader, device, img_size=240):
     return aepe_array
 
 
-def calculate_pck_hpatches(net, val_loader, device, alpha=1, im_size=240):
+def calculate_pck_hpatches(net, val_loader, device, alpha=1, img_size=240):
     """
     Compute PCK for HPatches dataset
     Args:
@@ -116,11 +116,11 @@ def calculate_pck_hpatches(net, val_loader, device, alpha=1, im_size=240):
     pbar = tqdm(enumerate(val_loader), total=len(val_loader))
     for _, mini_batch in pbar:
 
-        source_img = mini_batch['source_image'].to(net.device())
-        target_img = mini_batch['target_image'].to(net.device())
+        source_img = mini_batch['source_image'].to(device)
+        target_img = mini_batch['target_image'].to(device)
 
         # network estimates
-        estimates_grid = net(source_img, target_img)
+        estimates_grid, estimates_mask = net(source_img, target_img)
 
         flow_est = estimates_grid[-1].permute(0, 2, 3, 1).to(device)
         flow_target = mini_batch['correspondence_map'].to(device)
@@ -152,7 +152,7 @@ def calculate_pck_hpatches(net, val_loader, device, alpha=1, im_size=240):
         n_correct_correspondences += correct_correspondences(flow_est_m,
                                                              flow_target_m,
                                                              alpha=alpha,
-                                                             im_size=im_size)
+                                                             img_size=img_size)
 
     pck = n_correct_correspondences / (n_correspondences + 1e-6)
     return pck

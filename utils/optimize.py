@@ -47,7 +47,7 @@ def train_epoch(net,
             net(mini_batch['source_image'].to(device),
                 mini_batch['target_image'].to(device))
 
-        if criterion_matchability is None and not estimates_mask:
+        if criterion_matchability is not None and estimates_mask is None:
             raise ValueError('Cannot use `criterion_matchability` without mask estimates')
 
         Loss_masked_grid = 0

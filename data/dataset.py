@@ -330,7 +330,7 @@ class HomoAffTpsDataset(Dataset):
         # get the transformation type flag
         transform_type = data['aff/tps/homo'].astype('uint8')
 
-        # affine transformation
+        # aff/tps transformations
         if transform_type == 0 or transform_type == 1:
             # read image
             source_img_name = osp.join(self.img_path, data.fname)
@@ -372,7 +372,7 @@ class HomoAffTpsDataset(Dataset):
                                      self.H_OUT,
                                      self.W_OUT,
                                      padding_factor=0.5,
-                                     crop_factor=9 / 16).squeeze()
+                                     crop_factor=9 / 16).squeeze().numpy()
 
             # get cropped target image (240x240)
             img_target_crop = \
@@ -381,7 +381,11 @@ class HomoAffTpsDataset(Dataset):
                                      self.W_OUT,
                                      padding_factor=0.5,
                                      crop_factor=9 / 16,
-                                     theta=theta).squeeze(0)
+                                     theta=theta).squeeze().numpy()
+
+            # convert to [H, W, C] convention (for np arrays)
+            img_src_crop = img_src_crop.transpose((1, 2, 0))
+            img_target_crop = img_target_crop.transpose((1, 2, 0))
 
         # Homography transformation
         elif transform_type == 2:
@@ -416,21 +420,24 @@ class HomoAffTpsDataset(Dataset):
             # get the central crop of the target image
             img_target_crop, _, _ = center_crop(img_orig_target_vrbl.numpy(),
                                                 self.W_OUT)
+
         else:
             print('Error: transformation type')
 
         if self.transforms is not None:
             cropped_source_image = \
-                self.transforms(img_src_crop.astype(dtype=np.uint8))
+                self.transforms(img_src_crop.astype(np.uint8))
             cropped_target_image = \
-                self.transforms(img_target_crop.astype(dtype=np.uint8))
+                self.transforms(img_target_crop.astype(np.uint8))
         else:
             cropped_source_image = \
                 torch.Tensor(img_src_crop.astype(np.float32))
-            cropped_source_image = cropped_source_image.permute(2, 0, 1)
             cropped_target_image = \
                 torch.Tensor(img_target_crop.astype(np.float32))
-            cropped_target_image = cropped_target_image.permute(2, 0, 1)
+
+            # convert to [C, H, W] convention (for tensors)
+            cropped_source_image = cropped_source_image.permute(-1, 0, 1)
+            cropped_target_image = cropped_target_image.permute(-1, 0, 1)
 
         # consturct a pyramid with a corresponding grid on each layer
         grid_pyramid = []

@@ -14,7 +14,7 @@ import fnmatch
 
 from model.net import DGCNet
 from data.dataset import HPatchesDataset
-from utils.evaluate import calculate_epe_hpatches
+from utils.evaluate import calculate_epe_hpatches, calculate_pck_hpatches
 
 
 # Argument parsing
@@ -24,7 +24,7 @@ parser.add_argument('--csv-path', type=str, default='data/csv',
                     help='path to training transformation csv folder')
 parser.add_argument('--image-path', type=str, default='data/hpatches-geometry',
                     help='path to folder containing training images')
-parser.add_argument('--model', type=str, default='dgcm',
+parser.add_argument('--model', type=str, default='dgc',
                     help='Model to use', choices=['dgc', 'dgcm'])
 parser.add_argument('--metric', type=str, default='aepe',
                     help='Model to use', choices=['aepe', 'pck'])
@@ -69,6 +69,7 @@ with torch.no_grad():
         res = []
         jac = []
     if (args.metric == 'pck'):
+        # create a threshold range
         threshold_range = np.linspace(0.005, 0.1, num=200)
         res = np.zeros((number_of_scenes, len(threshold_range)))
 

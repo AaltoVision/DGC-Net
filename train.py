@@ -123,7 +123,9 @@ if __name__ == "__main__":
                                          gamma=0.1)
     # Criterions
     criterion_grid = L1LossMasked().to(device)
-    criterion_match = nn.BCEWithLogitsLoss().to(device)
+    criterion_match = None
+    if args.model == 'dgcm':
+        criterion_match = nn.BCEWithLogitsLoss().to(device)
 
     train_losses = []
     val_losses = []
