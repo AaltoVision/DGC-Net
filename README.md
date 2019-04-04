@@ -21,8 +21,8 @@ pip install -r requirements.txt
 ## Getting started
 * ```eval.py``` demonstrates the results on the HPatches dataset
 To be able to run ```eval.py``` script:
-      * Download an archive with pre-trained models [click](https://drive.google.com/file/d/1p1FarlU5byWez_mQC68DZ_eRQKfF9IIf/view?usp=sharing) and unpack it
-in the project folder
+      * Download an archive with pre-trained models [click](https://drive.google.com/file/d/1p1FarlU5byWez_mQC68DZ_eRQKfF9IIf/view?usp=sharing) and extract it
+to the project folder
       * Download HPatches dataset (Full image sequences). The dataset is available [here](https://github.com/hpatches/hpatches-dataset) at the end of the page
       * Run the following command:
       ```
