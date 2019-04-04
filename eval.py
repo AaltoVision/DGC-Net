@@ -22,7 +22,8 @@ parser = argparse.ArgumentParser(description='DGC-Net')
 # Paths
 parser.add_argument('--csv-path', type=str, default='data/csv',
                     help='path to training transformation csv folder')
-parser.add_argument('--image-path', type=str, default='data/hpatches-geometry',
+parser.add_argument('--image-data-path', type=str,
+                    default='data/hpatches-geometry',
                     help='path to folder containing training images')
 parser.add_argument('--model', type=str, default='dgc',
                     help='Model to use', choices=['dgc', 'dgcm'])
@@ -78,7 +79,7 @@ with torch.no_grad():
         test_dataset = \
             HPatchesDataset(csv_file=osp.join(args.csv_path,
                                               'hpatches_1_{}.csv'.format(k)),
-                            image_path_orig=args.image_path,
+                            image_path_orig=args.image_data_path,
                             transforms=dataset_transforms)
 
         test_dataloader = DataLoader(test_dataset,

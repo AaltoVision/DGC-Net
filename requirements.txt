@@ -1,4 +1,4 @@
-termcolor=1.1.0
-opencv-python=4.0.0.21
-tqdm=4.31.1
-pandas=0.24.2
+termcolor==1.1.0
+opencv-python==4.0.0.21
+tqdm==4.31.1
+pandas==0.24.2
