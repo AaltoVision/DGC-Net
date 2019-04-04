@@ -21,20 +21,20 @@ pip install -r requirements.txt
 ## Getting started
 * ```eval.py``` demonstrates the results on the HPatches dataset
 To be able to run ```eval.py``` script:
-      * Download an archive with pre-trained models [click](https://drive.google.com/file/d/1p1FarlU5byWez_mQC68DZ_eRQKfF9IIf/view?usp=sharing) and extract it
+    * Download an archive with pre-trained models [click](https://drive.google.com/file/d/1p1FarlU5byWez_mQC68DZ_eRQKfF9IIf/view?usp=sharing) and extract it
 to the project folder
-      * Download HPatches dataset (Full image sequences). The dataset is available [here](https://github.com/hpatches/hpatches-dataset) at the end of the page
-      * Run the following command:
-      ```
-      python eval.py --image-data-path /path/to/hpatches-geometry
-      ```
+    * Download HPatches dataset (Full image sequences). The dataset is available [here](https://github.com/hpatches/hpatches-dataset) at the end of the page
+    * Run the following command:
+    ```
+    python eval.py --image-data-path /path/to/hpatches-geometry
+    ```
 
 * ```train.py``` is a script to train DGC-Net/DGCM-Net model from scratch. To run this script, please follow the next procedure:
-      * Download the [TokyoTimeMachine dataset](https://www.di.ens.fr/willow/research/netvlad/)
-      * Run the command:
-      ```
-      python train.py --image-data-path /path/to/TokyoTimeMachine
-      ```
+    * Download the [TokyoTimeMachine dataset](https://www.di.ens.fr/willow/research/netvlad/)
+    * Run the command:
+    ```
+    python train.py --image-data-path /path/to/TokyoTimeMachine
+    ```
 
 ## Performance on [HPatches](https://github.com/hpatches/hpatches-dataset) dataset
 Method / HPatches ID|Viewpoint 1|Viewpoint 2|Viewpoint 3|Viewpoint 4|Viewpoint 5
