@@ -1,4 +1,7 @@
 # DGC-Net: Dense Geometric Correspondence Network
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/dgc-net-dense-geometric-correspondence/dense-pixel-correspondence-estimation)](https://paperswithcode.com/sota/dense-pixel-correspondence-estimation?p=dgc-net-dense-geometric-correspondence)
+
 This is a PyTorch implementation of our work ["DGC-Net: Dense Geometric Correspondence Network"](https://arxiv.org/abs/1810.08393)
 
 **TL;DR** A CNN-based approach to obtain dense pixel correspondences between two views.
