@@ -28,12 +28,14 @@ class DGCNet(nn.Module):
         super(DGCNet, self).__init__()
 
         self.mask = mask
+        use_cuda = torch.cuda.is_available()
+        self.device = torch.device('cuda:0' if use_cuda else 'cpu')
 
-        self.pyramid = VGGPyramid()
+        self.pyramid = VGGPyramid().to(self.device)
         # L2 feature normalisation
-        self.l2norm = FeatureL2Norm()
+        self.l2norm = FeatureL2Norm().to(self.device)
         # Correlation volume
-        self.corr = CorrelationVolume()
+        self.corr = CorrelationVolume().to(self.device)
 
         if self.mask:
             self.matchability_net = MatchabilityNet(in_channels=128, bn=True)
@@ -62,9 +64,11 @@ class DGCNet(nn.Module):
         # do correlation
         corr1 = self.corr(feat_top_pyr_trg, feat_top_pyr_src)
         corr1 = self.l2norm(F.relu(corr1))
+        print(corr1.shape)
+        sys.exit()
 
         b, c, h, w = corr1.size()
-        init_map = torch.FloatTensor(b, 2, h, w).zero_().cuda()
+        init_map = torch.FloatTensor(b, 2, h, w).zero_().to(self.device)
         est_grid = self.__dict__['_modules']['reg_4'](x1=corr1, x3=init_map)
 
         estimates_grid = [est_grid]
