@@ -59,7 +59,7 @@ elif args.model == 'dgcm':
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-net.load_state_dict(torch.load(checkpoint_fname)['state_dict'])
+net.load_state_dict(torch.load(checkpoint_fname, map_location=device)['state_dict'])
 net = nn.DataParallel(net)
 net.eval()
 net = net.to(device)

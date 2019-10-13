@@ -64,8 +64,6 @@ class DGCNet(nn.Module):
         # do correlation
         corr1 = self.corr(feat_top_pyr_trg, feat_top_pyr_src)
         corr1 = self.l2norm(F.relu(corr1))
-        print(corr1.shape)
-        sys.exit()
 
         b, c, h, w = corr1.size()
         init_map = torch.FloatTensor(b, 2, h, w).zero_().to(self.device)
