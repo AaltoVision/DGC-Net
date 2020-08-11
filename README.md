@@ -50,6 +50,9 @@ Note: There is a difference in numbers presented in the original paper and obtai
 
 More qualitative results are presented on the [project page](https://aaltovision.github.io/dgc-net-site/)
 
+## License
+Our code is released under the Creative Commons BY-NC-SA 3.0, available only for non-commercial use.
+
 ## How to cite
 If you use this software in your own research, please cite our publication:
 
