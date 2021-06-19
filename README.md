@@ -3,6 +3,19 @@ This is a PyTorch implementation of our work ["DGC-Net: Dense Geometric Correspo
 
 **TL;DR** A CNN-based approach to obtain dense pixel correspondences between two views.
 
+## License
+Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa], available only for non-commercial use.
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+
+
 ## Installation
 - create and activate conda environment with Python 3.x
 ```
@@ -49,19 +62,6 @@ DGCM-Net (repo) | 2.33 | 5.62 | 9.55 | **11.59** | **16.48**
 Note: There is a difference in numbers presented in the original paper and obtained by the models of this repo. It might be related to the fact that both models (DGC-Net and DGCM-Net) have been trained using ```Pytorch v0.3```.
 
 More qualitative results are presented on the [project page](https://aaltovision.github.io/dgc-net-site/)
-
-## License
-Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
-
-This work is licensed under a
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa], available only for non-commercial use.
-
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
-
-[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
-[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
-[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
-
 
 ## How to cite
 If you use this software in your own research, please cite our publication:
