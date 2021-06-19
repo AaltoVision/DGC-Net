@@ -51,7 +51,17 @@ Note: There is a difference in numbers presented in the original paper and obtai
 More qualitative results are presented on the [project page](https://aaltovision.github.io/dgc-net-site/)
 
 ## License
-Our code is released under the Creative Commons BY-NC-SA 3.0, available only for non-commercial use.
+Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa], available only for non-commercial use.
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+
 
 ## How to cite
 If you use this software in your own research, please cite our publication:
